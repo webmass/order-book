@@ -3,6 +3,13 @@ export enum FeedTypes {
     delta = 'book_ui_1',
 }
 
+export enum FeedEvents {
+    subscribe = 'subscribe',
+    subscribed = 'subscribed',
+    unsubscribe = 'unsubscribe',
+    unsubscribed = 'unsubscribed',
+}
+
 export type PriceLevelArray = [number, number];
 
 export interface PriceLevel {
@@ -26,6 +33,15 @@ export type OrderBookPriceLevels = {
 export type OrderBookData = {
     asks: OrderBookLevel[];
     bids: OrderBookLevel[];
+}
+export interface OrderBookMessage {
+    event?: string;
+    feed?: string;
+    version?: number;
+    product_id?: string;
+    asks?: PriceLevel[];
+    bids?: PriceLevel[];
+    numLevels?: number;
 }
 
 export interface ProductMessage {

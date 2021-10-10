@@ -1,8 +1,8 @@
 import { MainProducts } from '../../types/common';
-import { OrderBookPriceLevels } from '../../types/orderbook';
+import { OrderBookPriceLevels, ProductMessage } from '../../types/orderbook';
 import { useState, useRef, useEffect } from 'react';
 import { BehaviorSubject } from 'rxjs';
-import { subscribeToProduct, unsubscribeToProduct, updateOrderBook } from '../../services/orderBook';
+import { initProductFeed, subscribeToProduct, unsubscribeToProduct, updateOrderBook } from '../../services/orderBook';
 import { throttleTime } from 'rxjs/operators';
 import OrderBook from './OrderBook';
 import StyledButton from '../common/StyledButton';
@@ -37,46 +37,71 @@ const empty = { asks: [], bids: [] };
 
 const OrderBookWidget = ({ defaultProductId = MainProducts.btcusd }) => {
     const [productId, setProductId] = useState(defaultProductId);
+    const [activeProductId, setActiveProductId] = useState('');
     const [hasFeedDisconnected, setHasFeedDisconnected] = useState(false);
     const [priceLevels, setPriceLevels] = useState<OrderBookPriceLevels>(empty);
     const priceLevelsFlow = useRef(new BehaviorSubject<OrderBookPriceLevels>(empty));
+    const wsRef = useRef<WebSocket | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
     const toggleFeed = () => {
         setProductId(productId === MainProducts.btcusd ? MainProducts.ethusd : MainProducts.btcusd);
     }
 
-    const handleMessageError = (event: Event) => {
+    const handleUnsubscribed = () => {
+        setPriceLevels(empty);
+        priceLevelsFlow.current.next(empty);
+        setActiveProductId('');
+    }
+
+    const handleSubscribed = (pid: string) => {
+        setHasFeedDisconnected(false);
+        setActiveProductId(pid);
+    }
+
+    const disconnect = () => {
         setHasFeedDisconnected(true);
+        setActiveProductId('');
+        if(wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+        }
+    }
+
+    const handleProductMessage = (data: ProductMessage, socket: WebSocket) => {
+        // user switched to another browser tab => avoid useless ws consumption
+        if (document.hidden) {
+            disconnect();
+            return;
+        }
+        const updatedPriceLevels = updateOrderBook(priceLevelsFlow.current.getValue(), data);
+        priceLevelsFlow.current.next(updatedPriceLevels);
     }
 
     const initFeed = (pid: string) => {
-        setHasFeedDisconnected(false);
-        const ws = subscribeToProduct(pid, (data, socket) => {
-            // user switched to another browser tab
-            if (document.hidden) {
-                unsubscribeToProduct(socket, pid);
-                setHasFeedDisconnected(true);
-                return;
-            }
-            const updatedPriceLevels = updateOrderBook(priceLevelsFlow.current.getValue(), data);
-            priceLevelsFlow.current.next(updatedPriceLevels);
-        }, handleMessageError);
-
-        return ws;
+        wsRef.current = initProductFeed(pid, handleProductMessage, handleUnsubscribed, handleSubscribed, () => disconnect);
     }
 
-    const reconnectFeed = () => {
-        initFeed(productId);
+    const connect = () => {
+        if(!navigator.onLine) { return }
         setHasFeedDisconnected(false);
-    };
+        initFeed(productId);
+    }
 
     useEffect(() => {
-        const ws = initFeed(productId);
         return () => {
-            unsubscribeToProduct(ws, productId);
-            priceLevelsFlow.current.next(empty);
+            if (wsRef.current) {
+                unsubscribeToProduct(wsRef.current, productId);
+            }
         }
     }, [productId]);
+
+    useEffect(() => {
+        setIsLoading(activeProductId !== productId && !hasFeedDisconnected);
+        if(activeProductId === '' && wsRef.current && wsRef.current?.readyState === wsRef.current?.OPEN) {
+            subscribeToProduct(wsRef.current, productId);
+        }
+    }, [productId, activeProductId, hasFeedDisconnected]);
 
     useEffect(() => {
         const perf = estimateDevicePerfLatency();
@@ -89,6 +114,12 @@ const OrderBookWidget = ({ defaultProductId = MainProducts.btcusd }) => {
             )
             .subscribe((value) => setPriceLevels(value));
 
+        window.addEventListener('offline', () => {
+            disconnect();
+        });
+
+        connect();
+
         return () => {
             sub.unsubscribe();
         }
@@ -96,9 +127,11 @@ const OrderBookWidget = ({ defaultProductId = MainProducts.btcusd }) => {
 
     return (
         <div className={containerClass}>
-            <OrderBook {...priceLevels} hasFeedDisconnected={hasFeedDisconnected} onReconnectFeed={reconnectFeed} />
+            <OrderBook {...priceLevels} hasFeedDisconnected={hasFeedDisconnected} onReconnectFeed={connect} isLoading={isLoading} />
             <div className={btnContainerClass}>
-                <StyledButton onClick={toggleFeed} className={toggleFeedClass}>Toggle Feed</StyledButton>
+                <StyledButton onClick={toggleFeed} className={toggleFeedClass} disabled={hasFeedDisconnected || isLoading}>
+                    Toggle Feed
+                </StyledButton>
             </div>
         </div>
     )

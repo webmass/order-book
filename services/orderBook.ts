@@ -1,38 +1,44 @@
-import { FeedTypes, OnProductMessage, OnProductMessageError, OrderBookData, OrderBookPriceLevels, PriceLevel, PriceLevelArray, PriceLevelWithTotal, ProductMessage } from '../types/orderbook';
+import { FeedEvents, FeedTypes, OnProductMessage, OnProductMessageError, OrderBookData, OrderBookMessage, OrderBookPriceLevels, PriceLevel, PriceLevelArray, PriceLevelWithTotal, ProductMessage } from '../types/orderbook';
 
-const toPriceLevelsObjectArray = (priceSizeArr: PriceLevelArray[]): PriceLevel[] => {
+export const toPriceLevelsObjectArray = (priceSizeArr: PriceLevelArray[]): PriceLevel[] => {
     if (!priceSizeArr) return [];
     return priceSizeArr.map(([price, size]) => ({ price, size }));
 }
 
-export const unsubscribeToProduct = (socket: WebSocket, productId: string): void => {
-    if(socket.readyState !== socket.OPEN) { return }
-    socket.send(JSON.stringify({
-        "event": "unsubscribe",
+const getFeedMessageToSend = (eventName: FeedEvents.subscribe | FeedEvents.unsubscribe, productId: string) => {
+    return JSON.stringify({
+        "event": eventName,
         "feed": "book_ui_1",
         "product_ids": [productId]
-    }));
+    })
 }
 
-const isMessageWithOrderBookData = (data): boolean => {
-    return data.feed?.startsWith(FeedTypes.delta) && data.event !== 'subscribed';
+export const unsubscribeToProduct = (socket: WebSocket, productId: string): void => {
+    socket.send(getFeedMessageToSend(FeedEvents.unsubscribe, productId));
 }
-export const subscribeToProduct = (productId: string, handleMessage: OnProductMessage, handleError: OnProductMessageError): WebSocket => {
-    const ws = new WebSocket(process.env.NEXT_PUBLIC_ORDER_BOOK_WSS);
+export const subscribeToProduct = (socket: WebSocket, productId: string): void => {
+    socket.send(getFeedMessageToSend(FeedEvents.subscribe, productId));
+}
+
+const isMessageWithOrderBookData = (data: OrderBookMessage): boolean => {
+    return !!data?.feed?.startsWith(FeedTypes.delta) && !data?.event;
+}
+
+export const initProductFeed = (
+    productId: string,
+    handleMessage: OnProductMessage,
+    handleUnsubscribed: () => void,
+    handleSubscribed: (pid: string) => void,
+    handleErrOrClose: OnProductMessageError,
+): WebSocket => {
+    const ws = new WebSocket(process.env.NEXT_PUBLIC_ORDER_BOOK_WSS!);
 
     ws.addEventListener('open', () => {
-        ws.send(
-            JSON.stringify({
-                "event": "subscribe",
-                "feed": "book_ui_1",
-                "product_ids": [productId],
-            })
-        );
+        subscribeToProduct(ws, productId);
     });
 
-    ws.addEventListener('error', (event: Event) => {
-        handleError(event);
-    });
+    ws.addEventListener('error', handleErrOrClose);
+    ws.addEventListener('close', handleErrOrClose);
 
     ws.addEventListener('message', function (event) {
         const data = JSON.parse(event.data);
@@ -44,13 +50,18 @@ export const subscribeToProduct = (productId: string, handleMessage: OnProductMe
                 asks: toPriceLevelsObjectArray(data.asks),
                 bids: toPriceLevelsObjectArray(data.bids),
             }, ws);
+        } else if(data.event === FeedEvents.subscribed) {
+            handleSubscribed(data.product_ids[0]);
+        }
+        else if(data.event === FeedEvents.unsubscribed) {
+            handleUnsubscribed();
         }
     });
     return ws;
 }
 
 // update PriceLevels with the Delta data
-const updateLevels = (currentLevels: PriceLevel[], deltaLevels: PriceLevel[], isAsk: boolean): PriceLevel[] => {
+export const updateLevels = (currentLevels: PriceLevel[], deltaLevels: PriceLevel[], isAsk: boolean): PriceLevel[] => {
     const newLevels = [...currentLevels];
 
     deltaLevels.forEach(delta => {

@@ -11,6 +11,10 @@ const btnClass = css`
     :hover {
         background-color: #5741D9;
     }
+    :disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
 `
 
 const StyledButton = ({ children, className, ...props }: JSX.IntrinsicElements["button"]) => {
