@@ -2,6 +2,7 @@ import { css } from '@emotion/css';
 import cls from 'classnames';
 import { useMemo } from 'react';
 import { getFullOrderBookData } from '../../services/orderBook';
+import { TestIds } from '../../types/common';
 import { PriceLevel } from '../../types/orderbook';
 import StyledButton from '../common/StyledButton';
 import OrderBookLevels from './OrderBookLevels';
@@ -61,8 +62,9 @@ const bodyClass = css`
     }
 `;
 
-const reconnectBtnClass = css`
+const floatingCenteredClass = css`
     position: absolute;
+    text-align: center;
     width: 150px;
     height: 30px;
     left: 50%;
@@ -75,11 +77,13 @@ const OrderBook = ({
     asks,
     bids,
     hasFeedDisconnected,
-    onReconnectFeed
+    isLoading,
+    onReconnectFeed,
 }: {
     asks: PriceLevel[],
     bids: PriceLevel[],
     hasFeedDisconnected: boolean,
+    isLoading: boolean,
     onReconnectFeed: () => void,
 }) => {
     const containerClasses = useMemo(() => cls(orderBookClass, { [disconnectedClass]: hasFeedDisconnected }), [hasFeedDisconnected]);
@@ -94,12 +98,15 @@ const OrderBook = ({
     return (
         <div className={containerClasses}>
             {
-                hasFeedDisconnected ?
-                    <StyledButton className={reconnectBtnClass} onClick={onReconnectFeed}>Reconnect Feed</StyledButton>
+                isLoading ?
+                    <span className={floatingCenteredClass}>Loading...</span>
                     :
-                    null
+                    hasFeedDisconnected ?
+                        <StyledButton className={floatingCenteredClass} onClick={onReconnectFeed}>Reconnect Feed</StyledButton>
+                        :
+                        null
             }
-            <div className={headerClass}>
+            <div className={headerClass} data-testid={TestIds.orderBookHeaderTitle}>
                 <span className="ob-title">Order Book</span>
                 <Spread />
             </div>
