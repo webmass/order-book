@@ -3,12 +3,24 @@
 // If you're using ESLint on your project, we recommend installing the ESLint Cypress plugin instead:
 // https://github.com/cypress-io/eslint-plugin-cypress
 
-import { TestIds } from '../../types/common'
+import { MainProducts, TestIds } from '../../types/common'
+
+// TODO : more detailed tests
 
 describe('Navigation', () => {
   it('should navigate to order book page', () => {
-    // Start from the index page
     cy.visit('http://localhost:3000/')
-    cy.getByFirstTestId(TestIds.orderBookHeaderTitle).contains('Order Book')
+    cy.shouldTestId(TestIds.orderBookHeaderTitle, 'exist')
+  })
+
+  it('should have BTC as active default product', () => {
+    cy.getByFirstTestId(TestIds.orderBookActiveProductId).should('have.value', MainProducts.btcusd)
+  })
+
+  it('should change the subscribed product id to ETH on toggle feed', () => {
+    cy.getByFirstTestId(TestIds.orderBookActiveToggleFeedBtn).click()
+    cy.shouldTestId(TestIds.orderBookLoadingMessage, 'exist')
+    cy.getByFirstTestId(TestIds.orderBookActiveProductId).should('have.value', MainProducts.ethusd)
+    cy.shouldTestId(TestIds.orderBookLoadingMessage, 'not.exist')
   })
 })

@@ -25,4 +25,5 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 Cypress.Commands.add('getByTestId',(testId) => cy.get(`[data-testid="${testId}"]`))
+Cypress.Commands.add('shouldTestId',(testId, should) => cy.getByTestId(testId).should(should))
 Cypress.Commands.add('getByFirstTestId',(testId) => cy.getByTestId(testId).first())

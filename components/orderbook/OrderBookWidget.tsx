@@ -1,4 +1,4 @@
-import { MainProducts } from '../../types/common';
+import { MainProducts, TestIds } from '../../types/common';
 import { OrderBookPriceLevels, ProductMessage } from '../../types/orderbook';
 import { useState, useRef, useEffect } from 'react';
 import { BehaviorSubject } from 'rxjs';
@@ -54,9 +54,9 @@ const OrderBookWidget = ({ defaultProductId = MainProducts.btcusd }) => {
         setActiveProductId('');
     }
 
-    const handleSubscribed = (pid: string) => {
+    const handleSubscribed = (newlySubscribedProductId: string) => {
         setHasFeedDisconnected(false);
-        setActiveProductId(pid);
+        setActiveProductId(newlySubscribedProductId);
     }
 
     const disconnect = () => {
@@ -129,10 +129,11 @@ const OrderBookWidget = ({ defaultProductId = MainProducts.btcusd }) => {
         <div className={containerClass}>
             <OrderBook {...priceLevels} hasFeedDisconnected={hasFeedDisconnected} onReconnectFeed={connect} isLoading={isLoading} />
             <div className={btnContainerClass}>
-                <StyledButton onClick={toggleFeed} className={toggleFeedClass} disabled={hasFeedDisconnected || isLoading}>
+                <StyledButton onClick={toggleFeed} className={toggleFeedClass} disabled={hasFeedDisconnected || isLoading} data-testid={TestIds.orderBookActiveToggleFeedBtn}>
                     Toggle Feed
                 </StyledButton>
             </div>
+            <input type="hidden" value={activeProductId} data-testid={TestIds.orderBookActiveProductId} />
         </div>
     )
 }

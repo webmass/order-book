@@ -99,7 +99,7 @@ const OrderBook = ({
         <div className={containerClasses}>
             {
                 isLoading ?
-                    <span className={floatingCenteredClass}>Loading...</span>
+                    <span data-testid={TestIds.orderBookLoadingMessage} className={floatingCenteredClass}>Loading...</span>
                     :
                     hasFeedDisconnected ?
                         <StyledButton className={floatingCenteredClass} onClick={onReconnectFeed}>Reconnect Feed</StyledButton>
