@@ -112,3 +112,7 @@ export const getFullOrderBookData = (asks: PriceLevel[], bids: PriceLevel[]): Or
     const withTotals = { asks: getPriceLevelsWithTotal(asks), bids: getPriceLevelsWithTotal(bids) };
     return getOrderBookWithDepth(withTotals.asks, withTotals.bids);
 }
+
+export const getProductLabel = (productId: string) => {
+    return productId.replace('PI_', '').replace(/USD$/, '-USD').replace('XBT-', 'BTC-');
+}

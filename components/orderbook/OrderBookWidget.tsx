@@ -2,12 +2,12 @@ import { MainProducts, TestIds } from '../../types/common';
 import { OrderBookPriceLevels, ProductMessage } from '../../types/orderbook';
 import { useState, useRef, useEffect } from 'react';
 import { BehaviorSubject } from 'rxjs';
-import { initProductFeed, subscribeToProduct, unsubscribeToProduct, updateOrderBook } from '../../services/orderBook';
+import { getProductLabel, initProductFeed, subscribeToProduct, unsubscribeToProduct, updateOrderBook } from '../../services/orderBook';
 import { throttleTime } from 'rxjs/operators';
 import OrderBook from './OrderBook';
-import StyledButton from '../common/StyledButton';
 import { css } from '@emotion/css';
 import { estimateDevicePerfLatency } from '../../utils/device';
+import OrderBookProductBtn from './OrderBookProductBtn';
 
 const containerClass = css`
     width: 100%;
@@ -20,11 +20,7 @@ const containerClass = css`
     z-index: 0;
 `;
 
-const toggleFeedClass = css`
-    margin: 0.5rem 0;
-`;
-
-const btnContainerClass = css`
+const productsContainerClass = css`
     border-top: 2px solid #444;
     width: 100%;
     text-align: center;
@@ -43,10 +39,6 @@ const OrderBookWidget = ({ defaultProductId = MainProducts.btcusd }) => {
     const priceLevelsFlow = useRef(new BehaviorSubject<OrderBookPriceLevels>(empty));
     const wsRef = useRef<WebSocket | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
-
-    const toggleFeed = () => {
-        setProductId(productId === MainProducts.btcusd ? MainProducts.ethusd : MainProducts.btcusd);
-    }
 
     const handleUnsubscribed = () => {
         setPriceLevels(empty);
@@ -125,13 +117,24 @@ const OrderBookWidget = ({ defaultProductId = MainProducts.btcusd }) => {
         }
     }, []);
 
+    const productBtns = [MainProducts.btcusd, MainProducts.ethusd]
+    .map(pid => {
+        return <OrderBookProductBtn
+        key={pid}
+        onClick={() => setProductId(pid)}
+        productId={pid}
+        isActive={productId === pid} 
+        isDisabled={hasFeedDisconnected || isLoading}
+        >
+            {getProductLabel(pid)}
+        </OrderBookProductBtn>
+    })
+
     return (
         <div className={containerClass}>
             <OrderBook {...priceLevels} hasFeedDisconnected={hasFeedDisconnected} onReconnectFeed={connect} isLoading={isLoading} />
-            <div className={btnContainerClass}>
-                <StyledButton onClick={toggleFeed} className={toggleFeedClass} disabled={hasFeedDisconnected || isLoading} data-testid={TestIds.orderBookActiveToggleFeedBtn}>
-                    Toggle Feed
-                </StyledButton>
+            <div className={productsContainerClass}>
+                {productBtns}
             </div>
             <input type="hidden" value={activeProductId} data-testid={TestIds.orderBookActiveProductId} />
         </div>

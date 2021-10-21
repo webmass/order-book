@@ -18,7 +18,7 @@ describe('Navigation', () => {
   })
 
   it('should change the subscribed product id to ETH on toggle feed', () => {
-    cy.getByFirstTestId(TestIds.orderBookActiveToggleFeedBtn).click()
+    cy.getByFirstTestId(`${TestIds.orderBookProductBtn}-${MainProducts.ethusd}`).click()
     cy.shouldTestId(TestIds.orderBookLoadingMessage, 'exist')
     cy.getByFirstTestId(TestIds.orderBookActiveProductId).should('have.value', MainProducts.ethusd)
     cy.shouldTestId(TestIds.orderBookLoadingMessage, 'not.exist')
